@@ -4,11 +4,12 @@ import os
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
 from sklearn.model_selection import train_test_split
 
-###funciones que no se utilizan ###
+###funcion que no se utilizan ###
 def data_bug_fix(bad_table):
     bad_table[np.abs(bad_table)==np.inf] = 0
     bad_table[np.isnan(bad_table)]=0   
     return bad_table
+###funcion que no se utilizan ###
 
 def default_preprocessing(x_table):
     x_table_lg10 = data_bug_fix(np.log(x_table))
@@ -20,12 +21,13 @@ def get_poly_coeffs(input_vec, a_coef=9):
     z1, resid, rank, singular, rcond = list(polyfit(np.arange(0,len(input_vec)),input_vec/np.sum(input_vec), a_coef, full=True))
     return(z1, resid)
 
+###funcion que no se utilizan ###
 def poly_extracter(x_table, poly_coef=9):
     x_table_coefs = np.array(list(map(lambda x: get_poly_coeffs(x/np.sum(x), a_coef=poly_coef), x_table)))
     out_table = np.array([list(i[0]) for i in x_table_coefs])
     return out_table
+###funcion que no se utilizan ###
 
-###funciones que no se utilizan ###
 
 def dataset_from_files(experiments_folder, output_folder, sensor='R1', dataset='train'):
 

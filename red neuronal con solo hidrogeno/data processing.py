@@ -2,7 +2,10 @@ import pandas as pd
 import numpy as np
 import os
 import matplotlib.pyplot as plt
-from sklearn.preprocessing import StandardScaler, MinMaxScaler
+from sklearn import datasets, linear_model, preprocessing
+from sklearn.preprocessing import StandardScaler, MinMaxScaler, PolynomialFeatures
+from sklearn.pipeline import make_pipeline
+from sklearn.linear_model import LinearRegression
 from sklearn.model_selection import train_test_split
 from preprocessing import default_preprocessing, get_poly_coeffs
 
@@ -12,10 +15,17 @@ plt.style.use('ggplot')
 SENSOR = 'R1'
 DATASET_PATH = './preprocessed data'
 
-#se obtienen los valores de los excel, para resistencia
+
+#####################################Introducción del dataset: csv#####################################
+
+#se obtienen los valores de los excel, para resistencia y concentracion, entrada y salida
 X_train_df = pd.read_csv(os.path.join(DATASET_PATH, SENSOR+'_X_train.csv'), header=None)
 X_val_df = pd.read_csv(os.path.join(DATASET_PATH, SENSOR+'_X_val.csv'), header=None)
 X_test_df = pd.read_csv(os.path.join(DATASET_PATH, SENSOR+'_X_test.csv'), header=None)
+
+Y_train_df = pd.read_csv(os.path.join(DATASET_PATH, SENSOR+'_Y_train.csv'), header=None)
+Y_val_df = pd.read_csv(os.path.join(DATASET_PATH, SENSOR+'_Y_val.csv'), header=None)
+Y_test_df = pd.read_csv(os.path.join(DATASET_PATH, SENSOR+'_Y_test.csv'), header=None)
 
 #se obtienen la descripcion para cada dato
 train_log = pd.read_csv(os.path.join(DATASET_PATH, SENSOR+'_log_train.csv'),index_col=0)
@@ -32,6 +42,8 @@ X_train_lg10 = default_preprocessing(X_train)
 X_val_lg10 = default_preprocessing(X_val)
 X_test_lg10 = default_preprocessing(X_test)
 
+
+#########################Muestreo de un dato en el tiempo, lineal y log##############################
 # grafico de una muestra alatoriamente
 plt.rcParams['figure.figsize'] = (12,5)
 row_number = np.random.randint(X_train_df.shape[0])
@@ -56,7 +68,48 @@ plt.ylabel('Log10(sensor response)', fontsize = 16), plt.xlabel('Time, s', fonts
 plt.show()
 
 
-#2. Polynomial approximation, se utiliza para aproximar el orden, por eso es que se utiliza la misma resistencia verificar si el modelo se aproxima
+
+###########################Creación de modelos de regresión:################################
+
+
+column_number=np.random.randint(X_train_df.shape[1]) # se utiliza una columna random del tiempo
+
+X_train_np=np.array(X_train_df) #se cambia a np
+X_train_col=X_train_np[:,column_number].reshape(-1, 1) #una columna del array
+
+X_val_np=np.array(X_val_df) #se cambia a np
+X_val_col=X_val_np[:,column_number].reshape(-1, 1) #una columna del array
+
+#se hacen los modelos
+regr = linear_model.LinearRegression() 
+degree=2
+polyreg=make_pipeline(PolynomialFeatures(degree),LinearRegression())
+
+#se utilizan los modelos para crear la salida
+regr.fit(X_train_col, Y_train_df) #
+polyreg.fit(X_train_col, Y_train_df) 
+degree_fit=3
+polyfit = np.polyfit(X_train_np[:,column_number], Y_train_df, degree_fit)
+
+#se utilizan los modelos para crear la salida
+Y_pred_regr = regr.predict(X_val_col) #
+Y_pred_polynom = polyreg.predict(X_val_col) 
+Y_pred_polyfit = np.polyval(polyfit, X_val_col)
+
+# Plot outputs
+plt.scatter(X_train_col, Y_train_df, color='black', s = 5, label = 'Data points')
+plt.plot(X_val_col, Y_pred_regr, color='blue', alpha = 0.5,label = 'Linear Regression')
+plt.plot(X_val_col, Y_pred_polynom, color='red', alpha = 0.5,label = 'Polynomial Regression order: {}'.format(degree))
+plt.plot(X_val_col, Y_pred_polyfit, color='yellow', alpha = 0.5,label = 'Polynomial fit order: {}'.format(degree_fit))
+plt.title("Hydrogen concentration vs Resistance, Regression Models: Expected & Actual")
+plt.ylabel('Concentration', fontsize = 16), plt.xlabel('Resistance', fontsize = 16)
+plt.legend()
+plt.show()
+
+
+##############################Aproximación polinomial AICc:###################################
+
+#Polynomial approximation, se utiliza para aproximar el orden, por eso es que se utiliza la misma resistencia verificar si el modelo se aproxima
 
 
 '''AICc = n * log(SSE/n) + (n + p) / (1 - (p + 2) / n)
@@ -86,7 +139,6 @@ plt.title('AIC value for neural net with {neurons} neurons'.format(neurons=NUM_H
 plt.xlabel('Polynomial order', fontsize=16)
 plt.show()
 
-
 p = np.poly1d(X_train_coefs[row_number])
 t = np.arange(0, X_train.shape[1])
 
@@ -102,7 +154,7 @@ leg.get_frame().set_linewidth(0.0)
 plt.show()
 
 
-#3. PCA decomposition
+################################PCA decomposition####################################
 
 from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
@@ -130,7 +182,8 @@ plt.xlabel("Principal component number", fontsize=16)
 plt.title('Cumulative explained variance', fontsize=18)
 plt.show()
 
-#4. Discrete Wavelet Transform
+
+################################Discrete Wavelet Transform####################################
 
 from pywt import wavedec
 for lvl in range(2,7):
