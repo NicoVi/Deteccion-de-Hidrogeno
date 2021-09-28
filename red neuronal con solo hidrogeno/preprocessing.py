@@ -16,6 +16,18 @@ def default_preprocessing(x_table):
     out_table = x_table_lg10 - np.min(x_table_lg10, axis=1).reshape([-1,1])
     return out_table
 
+def default_normalize_r(x_table):
+    out_table=np.zeros((x_table.shape[0], x_table.shape[1]))
+    for i in range(x_table.shape[0]):
+        out_table[i,:]=x_table[i,:]/sum(x_table[i,:])
+    return out_table
+
+def default_normalize_c(x_table):
+    out_table=np.zeros((x_table.shape[0], x_table.shape[1]))
+    for i in range(x_table.shape[1]):
+        out_table[:,i]=x_table[:,i]/sum(x_table[:,i])
+    return out_table
+
 def get_poly_coeffs(input_vec, a_coef=9):
     from scipy import polyfit
     z1, resid, rank, singular, rcond = list(polyfit(np.arange(0,len(input_vec)),input_vec/np.sum(input_vec), a_coef, full=True))
@@ -97,7 +109,7 @@ def dataset_from_files(experiments_folder, output_folder, sensor='R1', dataset='
                     #R_data = raw_file_noind[list(range(0,raw_file_noind.shape[0],1))]
                     #T_data = raw_file[list(range(0,raw_file.shape[0],2))] #Se extrae la temperatura en un vector
 
-                    y_data = np.zeros([R_data.shape[0], 1]) #crea un array con la cantidad de samples n por el total de diferentes tipos de gases, n x total de gases, se llenan de 0
+                    y_data = np.zeros([R_data.shape[0], 2]) #crea un array con la cantidad de samples n por el total de diferentes tipos de gases, n x total de gases, se llenan de 0
                     y_data[:,np.where(gas_cnt==gas_list)[0][0]]=conc_cnt # se llenan igual a la concentracion del gas en la fila que corresponda
 
 
