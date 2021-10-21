@@ -135,10 +135,10 @@ def dataset_from_files(experiments_folder, output_folder, sensor='R1', dataset='
 
     #hace un dataset, hace los datos de train y de validate
     if dataset=='train':
-        X_train, X_val, y_train, y_val = train_test_split(out_xr, out_y, test_size=0.2, random_state=42) #se crea el dataset con 20% de los datos para validate
+        X_train, X_val, y_train, y_val = train_test_split(out_xr, out_y, test_size=0.1, random_state=42) #se crea el dataset con 20% de los datos para validate
         #Xt_train, Xt_val, yt_train, yt_val = train_test_split(out_xt, out_y, test_size=0.2, random_state=42)
 
-        log_arr_trn, log_arr_val, y_train2, y_val2 = train_test_split(log_arr_train,  out_y, test_size=0.2, random_state=42) #se crea el log de los datos
+        log_arr_trn, log_arr_val, y_train2, y_val2 = train_test_split(log_arr_train,  out_y, test_size=0.1, random_state=42) #se crea el log de los datos
 
         np.savetxt(os.path.join(output_folder,sensor+'_X_train.csv'), X_train, delimiter=',') #se salva en csv los datos de train de la resistencia
         #np.savetxt(os.path.join(output_folder,sensor+'_Xt_train.csv'), Xt_train, delimiter=',')

@@ -60,11 +60,11 @@ X_train_lg10_n = tf.keras.utils.normalize(X_train_lg10)
 X_val_lg10_n = tf.keras.utils.normalize(X_val_lg10)
 X_test_lg10_n = tf.keras.utils.normalize(X_test_lg10)
 
-
+row_number = np.random.randint(X_train_df.shape[0])
+#%%
 #########################Muestreo de un dato en el tiempo, lineal y log##############################
 # grafico de una muestra alatoriamente
 plt.rcParams['figure.figsize'] = (12,5)
-row_number = np.random.randint(X_train_df.shape[0])
 plt.plot(np.linspace(0,55, X_train_df.shape[1]), X_train_df.iloc[row_number])
 plt.title("{gas} at concentration {concentration}ppm observed at {experiment}".format(\
                   gas=train_log.loc[row_number]['gas'],\
@@ -85,8 +85,9 @@ plt.title("{gas} at concentration {concentration}ppm observed at {experiment}".f
 plt.ylabel('Log10(sensor response)', fontsize = 16), plt.xlabel('Time, s', fontsize = 16)
 plt.show()
 
+
 #%%
-###########################Creación de modelos de la ANN:################################
+###########################Modelo binario de la ANN:################################
 
 #Se pasa a binario las salidas, en trains y validation
 Y_train_binary=np.zeros([Y_train.shape[0], 1])
@@ -97,72 +98,98 @@ Y_val_binary[Y_val[:,1]!=0] = 1
 
 
 #Se comienza a hacer la red neuronal
+model_binary = tf.keras.models.Sequential() #modelo sequencial
+model_binary.add(tf.keras.layers.Flatten()) #las capas de los datos se dan como una linea
+
+model_binary.add(tf.keras.layers.Dense(160, activation=tf.nn.relu)) #1 hidden layer con 160 neurons
+model_binary.add(tf.keras.layers.Dense(160, activation=tf.nn.relu)) #2 hidden layer con 160 neurons
+
+model_binary.add(tf.keras.layers.Dense(1, activation='sigmoid')) #salida binaria
+
+model_binary.compile(optimizer='adam', #optimizacion estandar
+              loss='binary_crossentropy',
+              metrics=['accuracy']) 
+
+
+history_binary=model_binary.fit(X_train_lg10_n, Y_train_binary, epochs=10, validation_data=(X_val_lg10_n, Y_val_binary)) #se ingresa X y Y, se prueba con varias iteraciones
+
+val_loss_binary, val_acc_binary = model_binary.evaluate(X_train_lg10_n, Y_train_binary) #se calcula la perdida y la precision del modelo
+
+Y_predict_binary = model_binary.predict(X_val_lg10_n) #Se obtiene el vector de resultados calculados por la red
+Y_predict_binary= np.heaviside(Y_predict_binary-0.5*np.ones(Y_predict_binary.shape), 1)
+
+loss_train_binary = history_binary.history['loss']
+loss_val_binary = history_binary.history['val_loss']
+epochs_binary = range(1, len(loss_train_binary) + 1)
+plt.plot(epochs_binary, loss_train_binary, 'y', label='Training loss')
+plt.plot(epochs_binary, loss_val_binary, 'r', label='Validation loss')
+plt.title('Binary Model: Training and Validation Loss')
+plt.xlabel('Epochs')
+plt.ylabel('Loss')
+plt.legend()
+plt.show()
+
+acc_train_binary = history_binary.history['accuracy']
+acc_val_binary = history_binary.history['val_accuracy']
+plt.plot(epochs_binary, acc_train_binary, 'y', label='Training Accuracy')
+plt.plot(epochs_binary, acc_val_binary, 'r', label='Validation Accuracy')
+plt.title('Binary Model: Training and Validation Accuracy')
+plt.xlabel('Epochs')
+plt.ylabel('Accuracy')
+plt.legend()
+plt.show()
+
+#Modelos binarios: https://towardsdatascience.com/7-popular-activation-functions-you-should-know-in-deep-learning-and-how-to-use-them-with-keras-and-27b4d838dfe6
+#%%
+###########################Modelo no binario de la ANN:################################
+Y_train_sequential = Y_train[:,1]
+
+Y_val_sequential = Y_val[:,1]
+
 model_sequential = tf.keras.models.Sequential() #modelo sequencial
 model_sequential.add(tf.keras.layers.Flatten()) #las capas de los datos se dan como una linea
 
 model_sequential.add(tf.keras.layers.Dense(160, activation=tf.nn.relu)) #1 hidden layer con 160 neurons
+model_sequential.add(tf.keras.layers.Dropout(0.05))
 model_sequential.add(tf.keras.layers.Dense(160, activation=tf.nn.relu)) #2 hidden layer con 160 neurons
-
-model_sequential.add(tf.keras.layers.Dense(1, activation='sigmoid')) #salida binaria
+#model_sequential.add(tf.keras.layers.Dropout(0.07))
+model_sequential.add(tf.keras.layers.Dense(1601, activation=tf.nn.softmax)) #salida binaria
 
 model_sequential.compile(optimizer='adam', #optimizacion estandar
-              loss='binary_crossentropy',
+              loss='sparse_categorical_crossentropy',
               metrics=['accuracy']) 
 
-model_sequential.fit(X_train_lg10_n, Y_train_binary, epochs=4) #se ingresa X y Y, se prueba con varias iteraciones
 
-val_loss, val_acc = model_sequential.evaluate(X_train_lg10_n, Y_train_binary) #se calcula la perdida y la precision del modelo
-print(val_loss)
-print(val_acc)
+history_sequential=model_sequential.fit(X_train_lg10_n, Y_train_sequential, epochs=100, validation_data=(X_val_lg10_n, Y_val_sequential)) #se ingresa X y Y, se prueba con varias iteraciones
 
-Y_predict = model_sequential.predict(X_val_lg10_n) #Se obtiene el vector de resultados calculados por la red
-print(np.argmax(Y_predict[0]))
+val_loss_sequential, val_acc_sequential = model_sequential.evaluate(X_train_lg10_n, Y_train_sequential) #se calcula la perdida y la precision del modelo
 
+Y_predict_sequential = model_sequential.predict(X_val_lg10_n)
+Y_predict_sequential = np.argmax(Y_predict_sequential, axis=1)
 
-###########################Creación de modelos de regresión:################################
-#%%
-X_train_aprox=X_train_lg10
-X_val_aprox=X_val_lg10 
-
-var=1000000000000000000000000000000000
-for i in range(X_train_aprox.shape[1]): 
-    var_loop=np.var(X_train_aprox[:,i])
-    if var_loop<var:
-        column_number=i
-        var=var_loop
-        
-#column_number=np.random.randint(X_train_df.shape[1]) # se utiliza una columna random del tiempo
-
-X_train_col=X_train_aprox[:,column_number].reshape(-1, 1) #una columna del array
-X_val_col=X_val_aprox[:,column_number].reshape(-1, 1) #una columna del array
-
-#se hacen los modelos
-regr = linear_model.LinearRegression() 
-degree=2
-polyreg=make_pipeline(PolynomialFeatures(degree),LinearRegression())
-
-#se utilizan los modelos para crear la salida
-regr.fit(X_train_col, Y_train_df) #
-polyreg.fit(X_train_col, Y_train_df) 
-degree_fit=3
-polyfit = np.polyfit(X_train_aprox[:,column_number], Y_train_df, degree_fit)
-
-#se utilizan los modelos para crear la salida
-Y_pred_regr = regr.predict(X_val_col) #
-Y_pred_polynom = polyreg.predict(X_val_col) 
-Y_pred_polyfit = np.polyval(polyfit, X_val_col)
-
-# Plot outputs
-plt.scatter(X_train_col, Y_train_df, color='black', s = 5, label = 'Data points')
-plt.plot(X_val_col, Y_pred_regr, color='blue', alpha = 0.5,label = 'Linear Regression')
-plt.plot(X_val_col, Y_pred_polynom, color='red', alpha = 0.5,label = 'Polynomial Regression order: {}'.format(degree))
-plt.plot(X_val_col, Y_pred_polyfit, color='yellow', alpha = 0.5,label = 'Polynomial fit order: {}'.format(degree_fit))
-plt.title("Hydrogen concentration vs Resistance, Regression Models: Expected & Actual")
-plt.ylabel('Concentration', fontsize = 16), plt.xlabel('Resistance', fontsize = 16)
+loss_train_sequential = history_sequential.history['loss']
+loss_val_sequential = history_sequential.history['val_loss']
+epochs_sequential = range(1, len(loss_train_sequential) + 1)
+plt.plot(epochs_sequential, loss_train_sequential, 'y', label='Training loss')
+plt.plot(epochs_sequential, loss_val_sequential, 'r', label='Validation loss')
+plt.title('Sequential Model: Training and Validation Loss')
+plt.xlabel('Epochs')
+plt.ylabel('Loss')
 plt.legend()
 plt.show()
-#%%
 
+acc_train_sequential = history_sequential.history['accuracy']
+acc_val_sequential = history_sequential.history['val_accuracy']
+plt.plot(epochs_sequential, acc_train_sequential, 'y', label='Training Accuracy')
+plt.plot(epochs_sequential, acc_val_sequential, 'r', label='Validation Accuracy')
+plt.title('Sequential Model: Training and Validation Accuracy')
+plt.xlabel('Epochs')
+plt.ylabel('Accuracy')
+plt.legend()
+plt.show()
+
+
+#%%
 ##############################Aproximación polinomial AICc:###################################
 
 #Polynomial approximation, se utiliza para aproximar el orden, por eso es que se utiliza la misma resistencia verificar si el modelo se aproxima
@@ -209,7 +236,7 @@ leg = plt.legend(['Observed signal', 'Approximated\n signal'], prop={'size': 16}
 leg.get_frame().set_linewidth(0.0)
 plt.show()
 
-
+#%%
 ################################PCA decomposition####################################
 
 from sklearn.preprocessing import StandardScaler
@@ -218,9 +245,10 @@ from sklearn.decomposition import PCA
 scaler_x = StandardScaler()
 pca_model = PCA(n_components=100)
 
-X_train_lg10_sc = scaler_x.fit_transform(X_train_lg10/np.sum(X_train_lg10, axis=1).reshape([-1,1]))
-pca_model.fit(X_train_lg10_sc)
+X_train_lg10_pca = scaler_x.fit_transform(X_train_lg10/np.sum(X_train_lg10, axis=1).reshape([-1,1]))
+X_val_lg10_pca = scaler_x.fit_transform(X_val_lg10/np.sum(X_val_lg10, axis=1).reshape([-1,1]))
 
+pca_model.fit(X_train_lg10_pca)
 
 expl_var_cumulative = np.cumsum(pca_model.explained_variance_ratio_)
 fig = plt.figure()
@@ -238,7 +266,54 @@ plt.xlabel("Principal component number", fontsize=16)
 plt.title('Cumulative explained variance', fontsize=18)
 plt.show()
 
+#%%
+###########################Modelo PCA:################################
+Y_train_lg10_pca = Y_train[:,1]
+Y_val_lg10_pca = Y_val[:,1]
 
+model_lg10_pca = tf.keras.models.Sequential() #modelo sequencial
+model_lg10_pca.add(tf.keras.layers.Flatten()) #las capas de los datos se dan como una linea
+
+model_lg10_pca.add(tf.keras.layers.Dense(180, activation=tf.nn.relu)) #1 hidden layer con 160 neurons
+#model_lg10_pca.add(tf.keras.layers.Dropout(0.5))
+model_lg10_pca.add(tf.keras.layers.Dense(180, activation=tf.nn.relu)) #2 hidden layer con 160 neurons
+#model_lg10_pca.add(tf.keras.layers.Dropout(0.05))
+model_lg10_pca.add(tf.keras.layers.Dense(1601, activation=tf.nn.softmax)) #salida binaria
+
+model_lg10_pca.compile(optimizer='adam', #optimizacion estandar
+              loss='sparse_categorical_crossentropy',
+              metrics=['accuracy']) 
+
+
+history_lg10_pca=model_lg10_pca.fit(X_train_lg10_pca, Y_train_lg10_pca, epochs=100, validation_data=(X_val_lg10_pca, Y_val_lg10_pca)) #se ingresa X y Y, se prueba con varias iteraciones
+
+val_loss_lg10_pca, val_acc_lg10_pca = model_lg10_pca.evaluate(X_train_lg10_n, Y_train_lg10_pca) #se calcula la perdida y la precision del modelo
+
+Y_predict_lg10_pca = model_lg10_pca.predict(X_val_lg10_pca)
+Y_predict_lg10_pca = np.argmax(Y_predict_lg10_pca, axis=1)
+
+loss_train_lg10_pca = history_lg10_pca.history['loss']
+loss_val_lg10_pca = history_lg10_pca.history['val_loss']
+epochs_lg10_pca = range(1, len(loss_train_lg10_pca) + 1)
+plt.plot(epochs_lg10_pca, loss_train_lg10_pca, 'y', label='Training loss')
+plt.plot(epochs_lg10_pca, loss_val_lg10_pca, 'r', label='Validation loss')
+plt.title('PCA Model: Training and Validation Loss')
+plt.xlabel('Epochs')
+plt.ylabel('Loss')
+plt.legend()
+plt.show()
+
+acc_train_lg10_pca = history_lg10_pca.history['accuracy']
+acc_val_lg10_pca = history_lg10_pca.history['val_accuracy']
+plt.plot(epochs_lg10_pca, acc_train_lg10_pca, 'y', label='Training Accuracy')
+plt.plot(epochs_lg10_pca, acc_val_lg10_pca, 'r', label='Validation Accuracy')
+plt.title('PCA Model: Training and Validation Accuracy')
+plt.xlabel('Epochs')
+plt.ylabel('Accuracy')
+plt.legend()
+plt.show()
+
+#%%
 ################################Discrete Wavelet Transform####################################
 
 from pywt import wavedec
@@ -248,4 +323,48 @@ for lvl in range(2,7):
 plt.legend(['level {}'.format(i) for i in range(2,7)], fontsize=14)
 plt.xlabel("Number of features", fontsize=16)
 plt.title("Approximation coefficients for Daubechies 4 wavelet", fontsize=18)
+plt.show()
+
+
+#%%
+###########################Creación de modelos de regresión:################################
+X_train_aprox=X_train_lg10
+X_val_aprox=X_val_lg10 
+
+var=1000000000000000000000000000000000
+for i in range(X_train_aprox.shape[1]): 
+    var_loop=np.var(X_train_aprox[:,i])
+    if var_loop<var:
+        column_number=i
+        var=var_loop
+        
+#column_number=np.random.randint(X_train_df.shape[1]) # se utiliza una columna random del tiempo
+
+X_train_col=X_train_aprox[:,column_number].reshape(-1, 1) #una columna del array
+X_val_col=X_val_aprox[:,column_number].reshape(-1, 1) #una columna del array
+
+#se hacen los modelos
+regr = linear_model.LinearRegression() 
+degree=2
+polyreg=make_pipeline(PolynomialFeatures(degree),LinearRegression())
+
+#se utilizan los modelos para crear la salida
+regr.fit(X_train_col, Y_train_df) #
+polyreg.fit(X_train_col, Y_train_df) 
+degree_fit=3
+polyfit = np.polyfit(X_train_aprox[:,column_number], Y_train_df, degree_fit)
+
+#se utilizan los modelos para crear la salida
+Y_pred_regr = regr.predict(X_val_col) #
+Y_pred_polynom = polyreg.predict(X_val_col) 
+Y_pred_polyfit = np.polyval(polyfit, X_val_col)
+
+# Plot outputs
+plt.scatter(X_train_col, Y_train_df, color='black', s = 5, label = 'Data points')
+plt.plot(X_val_col, Y_pred_regr, color='blue', alpha = 0.5,label = 'Linear Regression')
+plt.plot(X_val_col, Y_pred_polynom, color='red', alpha = 0.5,label = 'Polynomial Regression order: {}'.format(degree))
+plt.plot(X_val_col, Y_pred_polyfit, color='yellow', alpha = 0.5,label = 'Polynomial fit order: {}'.format(degree_fit))
+plt.title("Hydrogen concentration vs Resistance, Regression Models: Expected & Actual")
+plt.ylabel('Concentration', fontsize = 16), plt.xlabel('Resistance', fontsize = 16)
+plt.legend()
 plt.show()
