@@ -33,6 +33,11 @@ def get_poly_coeffs(input_vec, a_coef=9):
     z1, resid, rank, singular, rcond = list(polyfit(np.arange(0,len(input_vec)),input_vec/np.sum(input_vec), a_coef, full=True))
     return(z1, resid)
 
+def get_poly_coeffs_lg10(input_vec, a_coef=9):
+    from scipy import polyfit
+    z1, resid, rank, singular, rcond = list(polyfit(np.arange(0,len(input_vec)),input_vec, a_coef, full=True))
+    return(z1, resid)
+
 ###funcion que no se utilizan ###
 def poly_extracter(x_table, poly_coef=9):
     x_table_coefs = np.array(list(map(lambda x: get_poly_coeffs(x/np.sum(x), a_coef=poly_coef), x_table)))
