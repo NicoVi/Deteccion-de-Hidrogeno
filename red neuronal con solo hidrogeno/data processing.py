@@ -19,8 +19,8 @@ plt.style.use('ggplot')
 #matplotlib inline
 
 SENSOR = 'R1'
-DATASET_PATH = './preprocessed data'
-
+#DATASET_PATH = './preprocessed data'
+DATASET_PATH = './real data'
 
 #####################################Introducción del dataset: csv#####################################
 
@@ -36,7 +36,7 @@ Y_test_df = pd.read_csv(os.path.join(DATASET_PATH, SENSOR+'_Y_test.csv'), header
 #se obtienen la descripcion para cada dato
 train_log = pd.read_csv(os.path.join(DATASET_PATH, SENSOR+'_log_train.csv'),index_col=0)
 val_log = pd.read_csv(os.path.join(DATASET_PATH, SENSOR+'_log_val.csv'),index_col=0)
-test_log = pd.read_csv(os.path.join(DATASET_PATH, SENSOR+'_log_test.csv'),index_col=0)
+#test_log = pd.read_csv(os.path.join(DATASET_PATH, SENSOR+'_log_test.csv'),index_col=0)
 
 #filtra las primeras 5 observaciones de resistencia
 #X_train = np.array(X_train_df.loc[train_log.loc[train_log['curr obs']>=0].index])
@@ -67,7 +67,7 @@ row_number = np.random.randint(X_train_df.shape[0])
 #########################Muestreo de un dato en el tiempo, lineal y log##############################
 # grafico de una muestra alatoriamente
 plt.rcParams['figure.figsize'] = (12,5)
-plt.plot(np.linspace(0,55, X_train_df.shape[1]), X_train_df.iloc[row_number])
+plt.plot(np.linspace(0,55, X_test_df.shape[1]), X_test_df.iloc[5])
 plt.title("{gas} at concentration {concentration}ppm observed at {experiment}".format(\
                   gas=train_log.loc[row_number]['gas'],\
                   concentration=int(train_log.loc[row_number]['concentration']),\
@@ -78,7 +78,7 @@ plt.show()
 
 # grafico de una muestra alatoriamente en logaritmo
 plt.rcParams['figure.figsize'] = (12,5)
-plt.plot(np.linspace(0,55, X_train_lg10.shape[1]), X_train_lg10[row_number])
+plt.plot(np.linspace(0,55, X_test_lg10_n.shape[1]), X_test_lg10_n[5])
 plt.title("{gas} at concentration {concentration}ppm observed at {experiment}".format(\
                   gas=train_log.loc[row_number]['gas'],\
                   concentration=int(train_log.loc[row_number]['concentration']),\
@@ -98,6 +98,8 @@ Y_train_binary[Y_train[:,1]!=0] = 1
 Y_val_binary=np.zeros([Y_val.shape[0], 1])
 Y_val_binary[Y_val[:,1]!=0] = 1
 
+Y_test_binary=np.zeros([Y_test.shape[0], 1])
+Y_test_binary[Y_test[:,1]!=0] = 1
 
 #Se comienza a hacer la red neuronal
 model_binary = tf.keras.models.Sequential() #modelo sequencial
@@ -113,9 +115,9 @@ model_binary.compile(optimizer='adam', #optimizacion estandar
               metrics=['accuracy']) 
 
 
-history_binary=model_binary.fit(X_train_lg10_n, Y_train_binary, epochs=10, validation_data=(X_val_lg10_n, Y_val_binary)) #se ingresa X y Y, se prueba con varias iteraciones
+history_binary=model_binary.fit(X_train_lg10_n, Y_train_binary, epochs=30, validation_data=(X_val_lg10_n, Y_val_binary)) #se ingresa X y Y, se prueba con varias iteraciones
 
-val_loss_binary, val_acc_binary = model_binary.evaluate(X_train_lg10_n, Y_train_binary) #se calcula la perdida y la precision del modelo
+test_loss_binary, test_acc_binary = model_binary.evaluate(X_test_lg10_n, Y_test_binary) #se calcula la perdida y la precision del modelo
 
 Y_predict_binary = model_binary.predict(X_val_lg10_n) #Se obtiene el vector de resultados calculados por la red
 Y_predict_binary= np.heaviside(Y_predict_binary-0.5*np.ones(Y_predict_binary.shape), 1)
@@ -145,8 +147,8 @@ plt.show()
 #%% ANN Norm
 ###########################Modelo no binario de la ANN:################################
 Y_train_sequential = Y_train[:,1]
-
 Y_val_sequential = Y_val[:,1]
+Y_test_sequential = Y_test[:,1]
 
 model_sequential = tf.keras.models.Sequential() #modelo sequencial
 model_sequential.add(tf.keras.layers.Flatten()) #las capas de los datos se dan como una linea
@@ -162,9 +164,9 @@ model_sequential.compile(optimizer='adam', #optimizacion estandar
               metrics=['accuracy']) 
 
 
-history_sequential=model_sequential.fit(X_train_lg10_n, Y_train_sequential, epochs=100, validation_data=(X_val_lg10_n, Y_val_sequential)) #se ingresa X y Y, se prueba con varias iteraciones
+history_sequential=model_sequential.fit(X_train_lg10_n, Y_train_sequential, epochs=30, validation_data=(X_val_lg10_n, Y_val_sequential)) #se ingresa X y Y, se prueba con varias iteraciones
 
-val_loss_sequential, val_acc_sequential = model_sequential.evaluate(X_train_lg10_n, Y_train_sequential) #se calcula la perdida y la precision del modelo
+test_loss_sequential, test_acc_sequential = model_sequential.evaluate(X_test_lg10_n, Y_test_sequential) #se calcula la perdida y la precision del modelo
 
 Y_predict_sequential = model_sequential.predict(X_val_lg10_n)
 Y_predict_sequential = np.argmax(Y_predict_sequential, axis=1)
@@ -208,7 +210,6 @@ for poly_coef in range(2, 18):
     
     
     X_train_mult = np.array(list(map(lambda x: get_poly_coeffs(x/np.sum(x), poly_coef), X_train_lg10)))
-
     X_train_coefs = np.array([list(i[0]) for i in X_train_mult])
     X_resid = np.array([list(i[1]) for i in X_train_mult])
 
@@ -218,6 +219,9 @@ for poly_coef in range(2, 18):
     X_val_lg10_mult = np.array(list(map(lambda x: get_poly_coeffs_lg10(x, poly_coef), X_val_lg10)))
     X_val_lg10_coefs = np.array([list(i[0]) for i in X_val_lg10_mult])   
 
+    X_test_lg10_mult = np.array(list(map(lambda x: get_poly_coeffs_lg10(x, poly_coef), X_test_lg10)))
+    X_test_lg10_coefs = np.array([list(i[0]) for i in X_test_lg10_mult]) 
+    
     SSE = np.mean(X_resid)
     n = X_train.shape[1]
     p = np.copy(poly_coef)*NUM_HIDDEN
@@ -249,6 +253,7 @@ plt.show()
 ###########################Modelo PCF:################################
 X_train_pcf=[]
 X_val_pcf=[]
+X_test_pcf=[]
 tt= np.arange(0, X_train_lg10.shape[1])
 
 for i in np.arange(0, X_train_lg10.shape[0]):
@@ -258,21 +263,31 @@ for i in np.arange(0, X_train_lg10.shape[0]):
 for i in np.arange(0, X_val_lg10.shape[0]):
     p=np.poly1d(X_val_lg10_coefs[i])
     X_val_pcf.append(p(tt))
+
+for i in np.arange(0, X_test_lg10.shape[0]):
+    p=np.poly1d(X_test_lg10_coefs[i])
+    X_test_pcf.append(p(tt))
     
+#X_train_lg10_pcf=np.array(X_train_lg10_coefs)
+#X_val_lg10_pcf=np.array(X_val_lg10_coefs)
+
 X_train_lg10_pcf=np.array(X_train_pcf)
 X_val_lg10_pcf=np.array(X_val_pcf)
+X_test_lg10_pcf=np.array(X_test_pcf)
 
 Y_train_lg10_pcf = Y_train[:,1]
 Y_val_lg10_pcf = Y_val[:,1]
+Y_test_lg10_pcf = Y_test[:,1]
 
 model_lg10_pcf = tf.keras.models.Sequential() #modelo sequencial
 model_lg10_pcf.add(tf.keras.layers.Flatten()) #las capas de los datos se dan como una linea
 
 model_lg10_pcf.add(tf.keras.layers.Dense(160, activation=tf.nn.relu)) #1 hidden layer con 160 neurons
-#model_lg10_pcf.add(tf.keras.layers.Dropout(0.8))
+#model_lg10_pcf.add(tf.keras.layers.Dropout(0.9))
 model_lg10_pcf.add(tf.keras.layers.Dense(160, activation=tf.nn.relu)) #2 hidden layer con 160 neurons
 #model_lg10_pcf.add(tf.keras.layers.Dropout(0.8))
 model_lg10_pcf.add(tf.keras.layers.Dense(1601, activation=tf.nn.softmax)) #salida binaria
+
 
 model_lg10_pcf.compile(optimizer='adam', #optimizacion estandar
               loss='sparse_categorical_crossentropy',
@@ -281,7 +296,10 @@ model_lg10_pcf.compile(optimizer='adam', #optimizacion estandar
 
 history_lg10_pcf=model_lg10_pcf.fit(X_train_lg10_pcf, Y_train_lg10_pcf, epochs=30, validation_data=(X_val_lg10_pcf, Y_val_lg10_pcf)) #se ingresa X y Y, se prueba con varias iteraciones
 
-val_loss_lg10_pcf, val_acc_lg10_pcf = model_lg10_pcf.evaluate(X_train_lg10_pcf, Y_train_lg10_pcf) #se calcula la perdida y la precision del modelo
+#val_loss_lg10_pcf, val_acc_lg10_pcf = model_lg10_pcf.evaluate(X_train_lg10_pcf, Y_train_lg10_pcf) #se calcula la perdida y la precision del modelo
+
+test_loss_lg10_pcf, test_acc_lg10_pcf = model_lg10_pcf.evaluate(X_test_lg10_pcf, Y_test_lg10_pcf) #se calcula la perdida y la precision del modelo
+
 
 Y_predict_lg10_pcf = model_lg10_pcf.predict(X_val_lg10_pcf)
 Y_predict_lg10_pcf = np.argmax(Y_predict_lg10_pcf, axis=1)
@@ -319,6 +337,7 @@ pca_model = PCA(n_components=100)
 
 X_train_lg10_pca = scaler_x.fit_transform(X_train_lg10/np.sum(X_train_lg10, axis=1).reshape([-1,1]))
 X_val_lg10_pca = scaler_x.fit_transform(X_val_lg10/np.sum(X_val_lg10, axis=1).reshape([-1,1]))
+X_test_lg10_pca = scaler_x.fit_transform(X_test_lg10/np.sum(X_test_lg10, axis=1).reshape([-1,1]))
 
 pca_model.fit(X_train_lg10_pca)
 
@@ -342,6 +361,7 @@ plt.show()
 ###########################Modelo PCA:################################
 Y_train_lg10_pca = Y_train[:,1]
 Y_val_lg10_pca = Y_val[:,1]
+Y_test_lg10_pca = Y_test[:,1]
 
 model_lg10_pca = tf.keras.models.Sequential() #modelo sequencial
 model_lg10_pca.add(tf.keras.layers.Flatten()) #las capas de los datos se dan como una linea
@@ -359,7 +379,7 @@ model_lg10_pca.compile(optimizer='adam', #optimizacion estandar
 
 history_lg10_pca=model_lg10_pca.fit(X_train_lg10_pca, Y_train_lg10_pca, epochs=30, validation_data=(X_val_lg10_pca, Y_val_lg10_pca)) #se ingresa X y Y, se prueba con varias iteraciones
 
-val_loss_lg10_pca, val_acc_lg10_pca = model_lg10_pca.evaluate(X_train_lg10_pca, Y_train_lg10_pca) #se calcula la perdida y la precision del modelo
+test_loss_lg10_pca, test_acc_lg10_pca = model_lg10_pca.evaluate(X_test_lg10_pca, Y_test_lg10_pca) #se calcula la perdida y la precision del modelo
 
 Y_predict_lg10_pca = model_lg10_pca.predict(X_val_lg10_pca)
 Y_predict_lg10_pca = np.argmax(Y_predict_lg10_pca, axis=1)
@@ -387,20 +407,28 @@ plt.show()
 
 #%% DWT
 ################################Discrete Wavelet Transform####################################
-
+import pywt
 from pywt import wavedec
+from pywt import downcoef
 
 X_train_lg10_dwt_list=list()
 X_val_lg10_dwt_list=list()
+X_test_lg10_dwt_list=list()
+
 for lvl in range(2,7):
     dwt_sample = wavedec(X_train_lg10[row_number]/np.sum(X_train_lg10[row_number]), wavelet = 'db4', mode = 'zero', level=lvl)[0][7:-2]
     plt.plot(dwt_sample)
     
     dwt_train = wavedec(X_train_lg10, wavelet = 'db4', mode = 'zero', level=lvl)[0]
     dwt_val= wavedec(X_val_lg10, wavelet = 'db4', mode = 'zero', level=lvl)[0]
+    dwt_test= wavedec(X_test_lg10, wavelet = 'db4', mode = 'zero', level=lvl)[0]
+    
+    #dwt_train = downcoef('a', X_train_lg10, wavelet = 'gaus', mode = 'zero', level=lvl)[0]
+    #dwt_val= downcoef('a', X_val_lg10, wavelet = 'gaus', mode = 'zero', level=lvl)[0] 
     
     X_train_lg10_dwt_list.append(dwt_train)
     X_val_lg10_dwt_list.append(dwt_val)
+    X_test_lg10_dwt_list.append(dwt_test)
 plt.legend(['level {}'.format(i) for i in range(2,7)], fontsize=14)
 plt.xlabel("Number of features", fontsize=16)
 plt.title("Approximation coefficients for Daubechies 4 wavelet", fontsize=18)
@@ -409,17 +437,19 @@ plt.show()
 
 #%% DWT ANN
 ###########################Modelo DWT:################################
-X_train_lg10_dwt = X_train_lg10_dwt_list[4] #0 equivale a lvl=2, hasta 4 que es lvl=6
-X_val_lg10_dwt = X_val_lg10_dwt_list[4]
+X_train_lg10_dwt = X_train_lg10_dwt_list[2] #0 equivale a lvl=2, hasta 4 que es lvl=6
+X_val_lg10_dwt = X_val_lg10_dwt_list[2]
+X_test_lg10_dwt = X_test_lg10_dwt_list[2]
 
 Y_train_lg10_dwt = Y_train[:,1]
 Y_val_lg10_dwt = Y_val[:,1]
+Y_test_lg10_dwt = Y_test[:,1]
 
 model_lg10_dwt = tf.keras.models.Sequential() #modelo sequencial
 model_lg10_dwt.add(tf.keras.layers.Flatten()) #las capas de los datos se dan como una linea
 
 model_lg10_dwt.add(tf.keras.layers.Dense(160, activation=tf.nn.relu)) #1 hidden layer con 160 neurons
-model_lg10_dwt.add(tf.keras.layers.Dropout(0.5))
+#model_lg10_dwt.add(tf.keras.layers.Dropout(0.5))
 model_lg10_dwt.add(tf.keras.layers.Dense(160, activation=tf.nn.relu)) #2 hidden layer con 160 neurons
 #model_lg10_dwt.add(tf.keras.layers.Dropout(0.05))
 model_lg10_dwt.add(tf.keras.layers.Dense(1601, activation=tf.nn.softmax)) #salida binaria
@@ -431,7 +461,7 @@ model_lg10_dwt.compile(optimizer='adam', #optimizacion estandar
 
 history_lg10_dwt=model_lg10_dwt.fit(X_train_lg10_dwt, Y_train_lg10_dwt, epochs=30, validation_data=(X_val_lg10_dwt, Y_val_lg10_dwt)) #se ingresa X y Y, se prueba con varias iteraciones
 
-val_loss_lg10_dwt, val_acc_lg10_dwt = model_lg10_dwt.evaluate(X_train_lg10_dwt, Y_train_lg10_dwt) #se calcula la perdida y la precision del modelo
+test_loss_lg10_dwt, test_acc_lg10_dwt = model_lg10_dwt.evaluate(X_test_lg10_dwt, Y_test_lg10_dwt) #se calcula la perdida y la precision del modelo
 
 Y_predict_lg10_dwt = model_lg10_dwt.predict(X_val_lg10_dwt)
 Y_predict_lg10_dwt = np.argmax(Y_predict_lg10_dwt, axis=1)
