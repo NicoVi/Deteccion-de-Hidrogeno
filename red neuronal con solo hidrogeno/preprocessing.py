@@ -19,7 +19,7 @@ def default_preprocessing(x_table):
 def default_normalize_r(x_table):
     out_table=np.zeros((x_table.shape[0], x_table.shape[1]))
     for i in range(x_table.shape[0]):
-        out_table[i,:]=x_table[i,:]/sum(x_table[i,:])
+        out_table[i,:]=(x_table[i,:]-min(x_table[i,:]))/(max(x_table[i,:])-min(x_table[i,:]))
     return out_table
 
 def default_normalize_c(x_table):

@@ -58,6 +58,22 @@ X_val_lg10 = default_preprocessing(X_val)
 X_test_lg10 = default_preprocessing(X_test)
 
 #se normaliza por filas, tiempo:
+#X_train_lg10 = tf.keras.utils.normalize(X_train)
+#X_val_lg10 = tf.keras.utils.normalize(X_val)
+#X_test_lg10 = tf.keras.utils.normalize(X_test)
+
+X_train_lg10 = default_normalize_r(X_train)
+X_val_lg10 = default_normalize_r(X_val)
+X_test_lg10 = default_normalize_r(X_test)   
+    
+#X_train_lg10 = tf.keras.utils.normalize(X_train_lg10)
+#X_val_lg10 = tf.keras.utils.normalize(X_val_lg10)
+#X_test_lg10 = tf.keras.utils.normalize(X_test_lg10)
+
+#X_train_lg10 = default_normalize_r(X_train_lg10)
+#X_val_lg10 = default_normalize_r(X_val_lg10)
+#X_test_lg10 = default_normalize_r(X_test_lg10)
+
 X_train_lg10_n = tf.keras.utils.normalize(X_train_lg10)
 X_val_lg10_n = tf.keras.utils.normalize(X_val_lg10)
 X_test_lg10_n = tf.keras.utils.normalize(X_test_lg10)
@@ -67,7 +83,7 @@ row_number = np.random.randint(X_train_df.shape[0])
 #########################Muestreo de un dato en el tiempo, lineal y log##############################
 # grafico de una muestra alatoriamente
 plt.rcParams['figure.figsize'] = (12,5)
-plt.plot(np.linspace(0,55, X_test_df.shape[1]), X_test_df.iloc[5])
+plt.plot(np.linspace(0,55, X_train_df.shape[1]), X_train_df.iloc[row_number])
 plt.title("{gas} at concentration {concentration}ppm observed at {experiment}".format(\
                   gas=train_log.loc[row_number]['gas'],\
                   concentration=int(train_log.loc[row_number]['concentration']),\
@@ -78,7 +94,7 @@ plt.show()
 
 # grafico de una muestra alatoriamente en logaritmo
 plt.rcParams['figure.figsize'] = (12,5)
-plt.plot(np.linspace(0,55, X_test_lg10_n.shape[1]), X_test_lg10_n[5])
+plt.plot(np.linspace(0,55, X_train_lg10.shape[1]), X_train_lg10[row_number])
 plt.title("{gas} at concentration {concentration}ppm observed at {experiment}".format(\
                   gas=train_log.loc[row_number]['gas'],\
                   concentration=int(train_log.loc[row_number]['concentration']),\
@@ -115,11 +131,11 @@ model_binary.compile(optimizer='adam', #optimizacion estandar
               metrics=['accuracy']) 
 
 
-history_binary=model_binary.fit(X_train_lg10_n, Y_train_binary, epochs=30, validation_data=(X_val_lg10_n, Y_val_binary)) #se ingresa X y Y, se prueba con varias iteraciones
+history_binary=model_binary.fit(X_train_lg10, Y_train_binary, epochs=30, validation_data=(X_val_lg10, Y_val_binary)) #se ingresa X y Y, se prueba con varias iteraciones
 
-test_loss_binary, test_acc_binary = model_binary.evaluate(X_test_lg10_n, Y_test_binary) #se calcula la perdida y la precision del modelo
+test_loss_binary, test_acc_binary = model_binary.evaluate(X_test_lg10, Y_test_binary) #se calcula la perdida y la precision del modelo
 
-Y_predict_binary = model_binary.predict(X_val_lg10_n) #Se obtiene el vector de resultados calculados por la red
+Y_predict_binary = model_binary.predict(X_val_lg10) #Se obtiene el vector de resultados calculados por la red
 Y_predict_binary= np.heaviside(Y_predict_binary-0.5*np.ones(Y_predict_binary.shape), 1)
 
 loss_train_binary = history_binary.history['loss']
@@ -164,11 +180,11 @@ model_sequential.compile(optimizer='adam', #optimizacion estandar
               metrics=['accuracy']) 
 
 
-history_sequential=model_sequential.fit(X_train_lg10_n, Y_train_sequential, epochs=30, validation_data=(X_val_lg10_n, Y_val_sequential)) #se ingresa X y Y, se prueba con varias iteraciones
+history_sequential=model_sequential.fit(X_train_lg10, Y_train_sequential, epochs=30, validation_data=(X_val_lg10, Y_val_sequential)) #se ingresa X y Y, se prueba con varias iteraciones
 
-test_loss_sequential, test_acc_sequential = model_sequential.evaluate(X_test_lg10_n, Y_test_sequential) #se calcula la perdida y la precision del modelo
+test_loss_sequential, test_acc_sequential = model_sequential.evaluate(X_test_lg10, Y_test_sequential) #se calcula la perdida y la precision del modelo
 
-Y_predict_sequential = model_sequential.predict(X_val_lg10_n)
+Y_predict_sequential = model_sequential.predict(X_val_lg10)
 Y_predict_sequential = np.argmax(Y_predict_sequential, axis=1)
 
 loss_train_sequential = history_sequential.history['loss']
